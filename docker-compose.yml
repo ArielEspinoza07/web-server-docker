@@ -1,6 +1,13 @@
 version: "3"
+
+networks:
+  backend:
+    driver: ${BACKEND_NETWORKS_DRIVER}
+
 services:
+
   php:
+    container_name: php
     build:
       context: ./php
       args:
@@ -10,3 +17,48 @@ services:
       - ${APP_PATH}:${APP_DESTINATION_PATH}
     expose:
       - "9000"
+    networks:
+        - backend
+
+  httpd:
+    container_name: httpd
+    build:
+      context: ./httpd
+      args:
+        - PHP_UPSTREAM_CONTAINER=${APACHE_PHP_UPSTREAM_CONTAINER}
+        - PHP_UPSTREAM_PORT=${APACHE_PHP_UPSTREAM_PORT}
+        - PHP_UPSTREAM_TIMEOUT=${APACHE_PHP_UPSTREAM_TIMEOUT}
+        - DOCUMENT_ROOT=${APACHE_DOCUMENT_ROOT}
+    volumes:
+      - ${APP_PATH}:${APP_DESTINATION_PATH}
+      - ${APACHE_HOST_LOG_PATH}:/var/log/apache2
+      - ${APACHE_SITES_PATH}:/etc/apache2/sites-available
+    ports:
+      - "${APACHE_HOST_HTTP_PORT}:8000"
+      - "${APACHE_HOST_HTTPS_PORT}:443"
+    depends_on:
+      - "php"
+    networks:
+        - backend
+  mariadb:
+    container_name: db
+    build:
+      context: ./mariadb
+      args:
+        - http_proxy
+        - https_proxy
+        - no_proxy
+        - MARIADB_VERSION=${MARIADB_VERSION}
+    volumes:
+      - ${DATA_PATH_HOST}/mariadb:/var/lib/mysql
+      - ${MARIADB_ENTRYPOINT_INITDB}:/docker-entrypoint-initdb.d
+    ports:
+      - "${MARIADB_PORT}:3307"
+    environment:
+      - TZ=${WORKSPACE_TIMEZONE}
+      - MYSQL_DATABASE=${MARIADB_DATABASE}
+      - MYSQL_USER=${MARIADB_USER}
+      - MYSQL_PASSWORD=${MARIADB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+    networks:
+      - backend
