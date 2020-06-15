@@ -1,0 +1,12 @@
+version: "3"
+services:
+  php:
+    build:
+      context: ./php
+      args:
+        - PHP_VERSION=${PHP_VERSION}
+    volumes:
+      - ./php/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+      - ${APP_PATH}:${APP_DESTINATION_PATH}
+    expose:
+      - "9000"
